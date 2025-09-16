@@ -11,10 +11,453 @@ library(patchwork)
 library(Rmisc)
 library(tidyverse)
 library(scales)
+library(lme4)
+
+
+
+# Create Fig. 2
+# Compare all models based on RMSE
+
+# z-scores
+
+model1 <- read.csv("Output_model/abserrors_zscore_randomproof.csv", dec = ".") %>%
+  dplyr::filter(metric=="RMAE") %>%
+  mutate(plot_week = str_extract(plot, "(?<=_)[^_]+(?=_)"), model= "model_2") %>%
+  separate(plot_week, into = c("plot", "week"), sep = "(?<=^[A-Z])", remove = FALSE ) %>% 
+  group_by(plot_week) %>%
+  dplyr::summarise(
+    mean_zscore = sum(z_range, na.rm = TRUE),
+    sd_zscore = sd(z_range, na.rm = TRUE),
+    plot = first(plot),
+    week = first(week),
+    model = first(model),
+    .groups = "drop"
+  )
+
+
+model2 <- read.csv("Output_model/abserrors_zscore_model2.csv", dec = ".") %>%
+  dplyr::filter(metric=="RMAE") %>%
+  mutate(plot_week = str_extract(plot, "(?<=_)[^_]+(?=_)"), model= "model_1") %>%
+  separate(plot_week, into = c("plot", "week"), sep = "(?<=^[A-Z])", remove = FALSE ) %>% 
+  group_by(plot_week) %>%
+  dplyr::summarise(
+    mean_zscore = sum(z_range, na.rm = TRUE),
+    sd_zscore = sd(z_range, na.rm = TRUE),
+    plot = first(plot),
+    week = first(week),
+    model = first(model),
+    .groups = "drop"
+  )
+
+model3 <- read.csv("Output_model/abserrors_zscore_1regular.csv", dec = ".") %>%
+  dplyr::filter(metric=="RMAE") %>%
+  mutate(plot_week = str_extract(plot, "(?<=_)[^_]+(?=_)"), model= "model_3") %>%
+  separate(plot_week, into = c("plot", "week"), sep = "(?<=^[A-Z])", remove = FALSE ) %>% 
+  group_by(plot_week) %>%
+  dplyr::summarise(
+    mean_zscore = sum(z_range, na.rm = TRUE),
+    sd_zscore = sd(z_range, na.rm = TRUE),
+    plot = first(plot),
+    week = first(week),
+    model = first(model),
+    .groups = "drop"
+  )
+
+model4 <- read.csv("Output_model/abserrors_zscore_1XY.csv", dec = ".") %>%
+  dplyr::filter(metric=="RMAE") %>%
+  mutate(plot_week = str_extract(plot, "(?<=_)[^_]+(?=_)"), model= "model_4") %>%
+  separate(plot_week, into = c("plot", "week"), sep = "(?<=^[A-Z])", remove = FALSE ) %>% 
+  group_by(plot_week) %>%
+  dplyr::summarise(
+    mean_zscore = sum(z_range, na.rm = TRUE),
+    sd_zscore = sd(z_range, na.rm = TRUE),
+    plot = first(plot),
+    week = first(week),
+    model = first(model),
+    .groups = "drop"
+  )
+
+
+models <- rbind(model1, model2, model3, model4)
+
+
+
+# Ensure models are in the correct order
+models <- models %>%
+  mutate(
+    model = factor(model, levels = paste0("model_", 1:4)),
+    week = factor(week)
+  )
+
+
+
+
+ggplot(models, aes(x = model, y = mean_zscore, 
+                   color = plot, shape = week, 
+                   group = interaction(plot, week))) +
+  geom_point(size = 2, alpha=0.8) +
+  geom_line(linewidth = 0.7) +
+  geom_errorbar(aes(ymin = mean_zscore - sd_zscore,
+                    ymax = mean_zscore + sd_zscore),
+                width = 0.2, linewidth = 0.6) +
+  scale_color_manual(values = c("#264653","#2a9d8f","#8ab17d","#e9c46a","#f4a261","#e76f51")) +
+  scale_shape_manual(values = c(15, 17, 19)) +  # square, triangle, circle
+  labs(
+    x = "",
+    y = "Observed vs simulated degree (z-score)",
+    color = "Plot",
+    shape = "Flowering \nstage"
+  ) +
+  facet_wrap( ~plot, scales="free_y") +
+  theme_bw(base_size = 14) +
+  theme(
+    legend.position = "right",
+    panel.grid.major = element_line(color = "gray90"),
+    panel.grid.minor = element_blank(),
+    strip.background = element_rect(color="white", fill="white", size=1.5, linetype="solid"),
+    strip.text=element_text(face="bold", size=14),
+    axis.text.x = element_text(size=10)
+  ) + scale_x_discrete(breaks=c("model_1","model_2","model_3", "model_4"),
+                       labels=c("Baseline", "Species \nabundance", 
+                                "Pollinator \nbehavior", "Spatial \nconfiguration")) + 
+  scale_y_log10()
+
+
+
+# Fit the mixed model
+hist(log(models$mean_zscore))
+mod_lmm <- lmer(log(mean_zscore) ~ model + (1 | plot_week), data = models)
+summary(mod_lmm)
+
+# Estimated marginal means for each model level
+emm <- emmeans(mod_lmm, ~ model)
+
+# Compare adjacent levels only
+contrast(emm, method = "consec", adjust = "none")
+
+
+
+# Pollinators' r values
+
+# Define parameters for the r distribution
+shape_e <- 2
+shape_g <- 2
+scale_e <- 5
+scale_g <- 1
+n_draws <- 1000  # Sample size
+
+# Generate prior
+name_prior <- paste0("_shapes_eg_", shape_e, "_", shape_g, "_scales", scale_e, "_", scale_g)
+
+# Generate random samples with Gamma distribution
+set.seed(123)  # set seed
+prior_e <- rgamma(n_draws, shape = shape_e, scale = scale_e)
+
+prior_g <- rgamma(n_draws, shape = shape_g, scale = scale_g)
+
+# Transform to dataframe and take a look at the first rows
+prior_e_df <- data.frame(prior_e = prior_e)
+prior_g_df <- data.frame(prior_g = prior_g)
+
+head(prior_e_df)
+head(prior_g_df)
+
+hist(prior_e_df$prior_e)
+hist(prior_g_df$prior_g)
+
+prior_g_df %<>% mutate(type="prior_g") %>% dplyr::rename(r_value= prior_g)
+prior_e_df %<>% mutate(type="prior_e") %>% dplyr::rename(r_value= prior_e)
+
+# Load posteriors
+temp <- list.files("Output_model/Accepted/", full.names = T)
+myfiles <- lapply(temp, read.csv)
+
+myfiles[[1]]
+names.temp <- gsub("Output_model/Accepted//|_gm_e\\(2,5\\)_gm_g\\(2,1\\)_th4_4|_accepted|\\.csv", "", temp)
+
+  
+for(i in 1:length(myfiles)){
+  names(myfiles)[[i]] <- names.temp[[i]]
+  temp1 <- myfiles[[i]] 
+  temp1 %<>% dplyr::select(r_esp, r_gen) %>% 
+    pivot_longer(cols=c(r_esp, r_gen), names_to = "type", values_to = "r_value") 
+  temp2 <- rbind(prior_g_df, prior_e_df, temp1)
+  temp2 %<>% dplyr::mutate(plot_week=sub("_.*", "", names.temp[[i]]),
+                           scenario=sub(".*_", "", names.temp[[i]]))
+  myfiles[[i]] <- temp2
+  
+}
+
+all.plots.weeks <- do.call("rbind", myfiles)
+
+all.plots.weeks %<>% dplyr::filter(scenario=="random")
+
+
+glimpse(all.plots.weeks)
+levels(as.factor(all.plots.weeks$type))
+
+
+# Create Fig. S2
+ggplot(all.plots.weeks, aes(x = r_value, color = type, fill = type)) +
+  geom_density(alpha = 0.4) +
+  scale_color_manual(values = c("#7a9aaf","#b0d8b5", "#2e4057", "#66a182"),
+                     labels = c("Occasional \nforagers (prior)", 
+                                "Frequent \nforagers (prior)", 
+                                "Occasional \nforagers (posterior)", 
+                                "Frequent \nforagers (posterior)")) +
+  scale_fill_manual(values = c("#7a9aaf","#b0d8b5", "#2e4057", "#66a182"),
+                    labels = c("Occasional \nforagers (prior)", 
+                               "Frequent \nforagers (prior)", 
+                               "Occasional \nforagers (posterior)", 
+                               "Frequent \nforagers (posterior)")) +
+  facet_wrap(~plot_week, ncol = 3, scales = "free") +
+  theme_bw() + 
+  xlim(0, 10) +  # Updated x-axis limit
+  xlab(expression(paste(italic("r "), "value"))) + 
+  ylab("Density") + 
+  theme(axis.text = element_text(size = 12), 
+        axis.title = element_text(size = 16),
+        axis.title.y = element_text(margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(margin = margin(t = 20, r = 0, b = 0, l = 0)),
+        legend.title = element_blank(),
+        legend.spacing.x = unit(0.5, "cm"),
+        legend.position = "bottom",
+        strip.background = element_rect(color = "white", fill = "white", size = 1.5),
+        strip.text = element_text(size = 14, face = "bold")) +  # Adjust facet label text
+  guides(color = guide_legend(ncol = 2, byrow = TRUE, 
+                              override.aes = list(order = c(4, 2, 3, 1))),
+         fill = guide_legend(ncol = 2, byrow = TRUE, 
+                             override.aes = list(order = c(4, 2, 3, 1))))
+
+
+# Create Fig. 3 panel A
+
+r.pol <- ggplot(filter(all.plots.weeks, plot_week=="A2"), 
+                aes(x = r_value, color = type, fill = type)) +
+  geom_density(alpha = 0.5) +
+  scale_color_manual(values = c("#7a9aaf","#b0d8b5", "#2e4057", "#66a182"),
+                     labels = c("Occasional \nforagers (prior)", 
+                                "Frequent \nforagers (prior)", 
+                                "Occasional \nforagers (posterior)", 
+                                "Frequent \nforagers (posterior)")) +
+  scale_fill_manual(values = c("#7a9aaf","#b0d8b5", "#2e4057", "#66a182"),
+                    labels = c("Occasional \nforagers (prior)", 
+                               "Frequent \nforagers (prior)", 
+                               "Occasional \nforagers (posterior)", 
+                               "Frequent \nforagers (posterior)")) +
+  theme_bw() + 
+  xlim(0, 10) +  
+  xlab(expression(paste(italic("r "), "value"))) + 
+  ylab("Density") + 
+  theme(axis.text = element_text(size = 14), 
+        axis.title = element_text(size = 16), 
+        legend.title = element_blank(),
+        legend.spacing.x = unit(0.3, "cm"),
+        legend.key.size = unit(0.5, "cm"),
+        legend.text = element_text(size=9),
+        strip.background = element_rect(color = "white", fill = "white", size = 1.5),
+        strip.text = element_text(size = 14, face = "bold"),
+        legend.position = c(0.98, 0.98),      
+        legend.justification = c(1, 1)) +  
+  guides(color = guide_legend(ncol = 2, byrow = TRUE, 
+                              keyheight = unit(1, "lines"),  # Increase key height for spacing
+                              override.aes = list(order = c(4, 2, 3, 1))),
+         fill = guide_legend(ncol = 2, byrow = TRUE, 
+                             keyheight = unit(1, "lines"),  # Increase key height for spacing
+                             override.aes = list(order = c(4, 2, 3, 1))))
+
+
+#####
+
+
+range01 <- function(x){(x-min(x))/(max(x)-min(x))}
+
+temp <- list.files("Output_model/Temporal_slices_individuals/", full.names = T)
+myfiles <- lapply(temp, read.csv, sep=";")
+
+names.temp <- gsub("Output_model/Temporal_slices_individuals//network_plot_|_slice_|\\.csv", "", temp)
+
+myfiles[[1]]
+
+n.ind.plant <- list()
+rel.abun.pol <- list()
+for(i in 1:length(myfiles)){
+  names(myfiles)[[i]] <- names.temp[[i]]
+  temp1 <- myfiles[[i]] %<>% dplyr::select(-Plant_id)
+  temp2 <- data.frame(n_plants=nrow(temp1), 
+                      n_pol=ncol(temp1),
+                      n_int=sum(temp1 != 0),
+                      plot_week= names(myfiles)[[i]])
+  temp2 %<>% mutate(plot = substr(plot_week, 1, 1),  
+                    slice = as.integer(substr(plot_week, 2, 2))) 
+  
+  n.ind.plant[[i]] <- temp2
+  
+  temp3 <- temp1
+  temp4 <- colSums(temp3) / sum(temp3)
+  
+  temp5 <- temp4*temp2$n_plants*5
+  temp6 <- (temp5)
+  
+  temp7 <- data.frame(pollinator_sp = names(temp6),
+                      rel_abundance = as.numeric(temp4),
+                      total_abundance = as.numeric(temp6),
+                      plot_week = names(myfiles)[[i]])
+  
+  
+  rel.abun.pol[[i]] <- temp7
+}
+
+all.n.ind <- do.call("rbind", n.ind.plant)
+
+table.net <- all.n.ind %>% dplyr::select(-plot_week)
+table.net <- table.net[,c(4,5,1,2,3)]
+table.net$n_plant_sp <- c(5,5,3,4,6,3,4,7,3,4,6,3,5,8,2,4,7,2)
+
+mean(table.net$n_plants)
+sd(table.net$n_plants)
+
+mean(table.net$n_pol)
+sd(table.net$n_pol)
+
+mean(table.net$n_int)
+sd(table.net$n_int)
+
+mean(table.net$n_plant_sp)
+sd(table.net$n_plant_sp)
+
+
+all.abun.pol <- do.call("rbind", rel.abun.pol)
+
+
+# P abundance histogram
+all.abun.pol %>% group_by(plot_week) %>% 
+  summarise(sum=sum(rel_abundance))
+
+
+# Create Fig. S1
+
+bins <- seq(0, 1, by = 0.05)
+
+# Create bins for rel_abundance using custom breaks
+df <- all.abun.pol %>%
+  dplyr::mutate(rel_abundance_bin = cut(rel_abundance, breaks = bins, include.lowest = TRUE))
+
+# Summarize the data to count the number of distinct pollinator species per bin
+df_summary <- df %>%
+  group_by(rel_abundance_bin, plot_week) %>%
+  dplyr::summarize(count = n_distinct(pollinator_sp)) %>%
+  # Convert bin labels to numeric midpoints for continuous x-axis
+  mutate(rel_abundance_mid = (as.numeric(gsub("[^0-9\\.]", "", sub(",.*", "", rel_abundance_bin))) +
+                                as.numeric(gsub("[^0-9\\.]", "", sub(".*,", "", rel_abundance_bin)))) / 2)
+glimpse(df_summary)
+
+ggplot(df_summary, aes(x = rel_abundance_mid, y = count)) +
+  geom_col(fill = "#2e4057") +  # Use your preferred color
+  labs(x = "Relative interaction frequency", 
+       y = "Number of pollinator species") +
+  theme_bw() +
+  facet_wrap(~plot_week, ncol=3, scales="free_y") +
+  theme(
+    axis.title = element_text(size = 16),
+    axis.title.y = element_text(margin = margin(t = 0, r = 20, b = 0, l = 0)),
+    axis.title.x = element_text(margin = margin(t = 20, r = 0, b = 0, l = 0)),
+    axis.text = element_text(size = 12),
+    strip.background = element_rect(color = "white", fill = "white", size = 1.5),
+    strip.text = element_text(size = 14, face = "bold")
+  ) +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.2)) +
+  scale_y_continuous(labels = scales::number_format(accuracy = 1))
+
+
+
+# Create Fig. 3 panel B
+
+#####
+temp <- list.files("Output_model/Accepted/", full.names = T)
+myfiles <- lapply(temp, read.csv)
+
+myfiles[[1]]
+names.temp <- gsub("Output_model/Accepted//|_gm_e\\(2,5\\)_gm_g\\(2,1\\)_th4_4|_accepted|\\.csv", "", temp)
+
+for(i in 1:length(myfiles)){
+  names(myfiles)[[i]] <- names.temp[[i]]
+  temp1 <- myfiles[[i]] 
+  names(temp1)[2] <- "pollinator_sp"
+  
+  pol.abun <- temp1 %>% dplyr::select(pollinator_sp, Tipo) %>%
+    dplyr::mutate(plot_week=sub("_.*", "", names.temp[[i]]))
+  pol.abun %<>% merge(all.abun.pol, by=c("pollinator_sp", "plot_week")) %>% unique()
+  abundance_sum <- aggregate(total_abundance ~ Tipo, data = pol.abun, sum)
+  abundance_sum$Tipo <- c("esp", "gen")
+  abundance_sum %<>% dplyr::rename(sp_gen_esp=Tipo)
+  
+  temp2 <- temp1 %>% dplyr::select(r_esp, r_gen) %>% 
+    pivot_longer(cols=c(r_esp, r_gen), names_to = "type", values_to = "r_value") 
+  #temp2 <- rbind(prior_g_df, prior_e_df, temp1)
+  temp2$scenario <- sub(".*_", "", names.temp[[i]])
+  temp2 %<>% dplyr::mutate(plot_week=sub("_.*", "", names.temp[[i]]),
+                           scenario=sub(".*_", "", names.temp[[i]]))
+  
+  temp2 %<>% dplyr::mutate(sp_gen_esp = substr(type, 3, 5)) %>% 
+    merge(abundance_sum, by="sp_gen_esp")
+  
+  myfiles[[i]] <- temp2
+}
+
+
+all.plots.weeks <- do.call("rbind", myfiles)
+
+all.plots.weeks <- unique(all.plots.weeks)
+
+
+all.plots.weeks %<>% dplyr::filter(scenario=="random")
+test <- aggregate(r_value ~ plot_week + type + sp_gen_esp + total_abundance, data = all.plots.weeks, median)
+
+test %<>% filter(!plot_week %in% c("E3", "F3"))
+r.pol.abun <- ggplot(test, aes(x = total_abundance, y = r_value, color = type, label=plot_week)) +
+  geom_point(size=3, alpha=0.5) + geom_text(hjust=-0.5, vjust=0, show_guide = F, size=2.5) +
+  stat_ellipse(type = "t", linetype = 2) +
+  scale_color_manual(values=c("#2e4057", "#66a182"), 
+                     labels=c("Occasional \nforagers", "Frequent \nforagers")) +
+  labs(x = "Interaction frequency", y = "r scale (median)", color = "type") +
+  theme_bw() + guides(label="none") + theme(legend.title=element_blank(),
+                                            legend.key.size = unit(0.5, "cm"),
+                                            legend.text = element_text(size=9),
+                                            axis.title = element_text(size=16),
+                                            axis.text = element_text(size=14),
+                                            legend.position = c(0.98, 0.98),      
+                                            legend.justification = c(1, 1)) +
+  guides(color = guide_legend(ncol = 1, byrow = TRUE, 
+                              keyheight = unit(2, "lines"),
+                              fill = guide_legend(ncol = 1, byrow = TRUE, 
+                                                  keyheight = unit(2, "lines"))))
+
+
+
+# Create Fig. 3
+
+ggarrange(
+  NULL, r.pol, NULL,         
+  r.pol.abun, 
+  nrow = 1, widths = c(0.1, 1, 0.1, 1), vjust=1.5, hjust=0.5,
+  labels = c("", "A","", "B"), font.label=list(color="black",size=20)       # Label of the line plot
+) 
+
+ggarrange(
+  r.pol,       
+  r.pol.abun, 
+  nrow = 2, 
+  labels = c( "A", "B"), font.label=list(color="black",size=20)       # Label of the line plot
+) 
+
+
+
+# Create Fig. 4
 
 
 # Read acceptance rates of the Bayesian Approximate Computation (ABC)
-acc.rate <- read.csv("Data/tasas.csv", dec = ".")
+acc.rate <- read.csv("Output_model/metrics.csv", dec = ".")
 glimpse(acc.rate)
 
 acc.rate %<>% dplyr::select(-Random,-Regular,-XY) %>% 
@@ -36,7 +479,7 @@ rand_xy %>% friedman.test(rate ~ scenario)
 friedman.test(rate ~ scenario | Plot_slice, data = acc.rate)
 
 
-# Create Fig. 4
+
 
 test1 <- acc.rate %>%
   dplyr::group_by(Plot_slice) %>%
@@ -214,434 +657,4 @@ plot.time + plot.space.time + plot_annotation(tag_levels = 'A') &
 
 
 
-# Create Fig. 2
-# Compare all models based on RMSE
-
-# z-scores
-
-model1 <- read.csv("Data/bayesian_metrics/with_errors/abserrors_zscore_randomproof.csv", dec = ".") %>%
-  dplyr::filter(metric=="RMAE") %>%
-  mutate(plot_week = str_extract(plot, "(?<=_)[^_]+(?=_)"), model= "model_2") %>%
-  separate(plot_week, into = c("plot", "week"), sep = "(?<=^[A-Z])", remove = FALSE ) %>% 
-  group_by(plot_week) %>%
-  dplyr::summarise(
-    mean_zscore = sum(z_range, na.rm = TRUE),
-    sd_zscore = sd(z_range, na.rm = TRUE),
-    plot = first(plot),
-    week = first(week),
-    model = first(model),
-    .groups = "drop"
-  )
-
-
-model2 <- read.csv("Data/bayesian_metrics/with_errors/abserrors_zscore_model2.csv", dec = ".") %>%
-  dplyr::filter(metric=="RMAE") %>%
-  mutate(plot_week = str_extract(plot, "(?<=_)[^_]+(?=_)"), model= "model_1") %>%
-  separate(plot_week, into = c("plot", "week"), sep = "(?<=^[A-Z])", remove = FALSE ) %>% 
-  group_by(plot_week) %>%
-  dplyr::summarise(
-    mean_zscore = sum(z_range, na.rm = TRUE),
-    sd_zscore = sd(z_range, na.rm = TRUE),
-    plot = first(plot),
-    week = first(week),
-    model = first(model),
-    .groups = "drop"
-  )
-
-model3 <- read.csv("Data/bayesian_metrics/with_errors/abserrors_zscore_1regular.csv", dec = ".") %>%
-  dplyr::filter(metric=="RMAE") %>%
-  mutate(plot_week = str_extract(plot, "(?<=_)[^_]+(?=_)"), model= "model_3") %>%
-  separate(plot_week, into = c("plot", "week"), sep = "(?<=^[A-Z])", remove = FALSE ) %>% 
-  group_by(plot_week) %>%
-  dplyr::summarise(
-    mean_zscore = sum(z_range, na.rm = TRUE),
-    sd_zscore = sd(z_range, na.rm = TRUE),
-    plot = first(plot),
-    week = first(week),
-    model = first(model),
-    .groups = "drop"
-  )
-
-model4 <- read.csv("Data/bayesian_metrics/with_errors/abserrors_zscore_1XY.csv", dec = ".") %>%
-  dplyr::filter(metric=="RMAE") %>%
-  mutate(plot_week = str_extract(plot, "(?<=_)[^_]+(?=_)"), model= "model_4") %>%
-  separate(plot_week, into = c("plot", "week"), sep = "(?<=^[A-Z])", remove = FALSE ) %>% 
-  group_by(plot_week) %>%
-  dplyr::summarise(
-    mean_zscore = sum(z_range, na.rm = TRUE),
-    sd_zscore = sd(z_range, na.rm = TRUE),
-    plot = first(plot),
-    week = first(week),
-    model = first(model),
-    .groups = "drop"
-  )
-
-
-models <- rbind(model1, model2, model3, model4)
-
-
-
-# Ensure models are in the correct order
-models <- models %>%
-  mutate(
-    model = factor(model, levels = paste0("model_", 1:4)),
-    week = factor(week)
-  )
-
-
-
-
-ggplot(models, aes(x = model, y = mean_zscore, 
-                   color = plot, shape = week, 
-                   group = interaction(plot, week))) +
-  geom_point(size = 2, alpha=0.8) +
-  geom_line(linewidth = 0.7) +
-  geom_errorbar(aes(ymin = mean_zscore - sd_zscore,
-                    ymax = mean_zscore + sd_zscore),
-                width = 0.2, linewidth = 0.6) +
-  scale_color_manual(values = c("#264653","#2a9d8f","#8ab17d","#e9c46a","#f4a261","#e76f51")) +
-  scale_shape_manual(values = c(15, 17, 19)) +  # square, triangle, circle
-  labs(
-    x = "",
-    y = "Observed vs simulated degree (z-score)",
-    color = "Plot",
-    shape = "Flowering \nstage"
-  ) +
-  facet_wrap( ~plot, scales="free_y") +
-  theme_bw(base_size = 14) +
-  theme(
-    legend.position = "right",
-    panel.grid.major = element_line(color = "gray90"),
-    panel.grid.minor = element_blank(),
-    strip.background = element_rect(color="white", fill="white", size=1.5, linetype="solid"),
-    strip.text=element_text(face="bold", size=14),
-    axis.text.x = element_text(size=10)
-  ) + scale_x_discrete(breaks=c("model_1","model_2","model_3", "model_4"),
-                       labels=c("Baseline", "Species \nabundance", 
-                                "Pollinator \nbehavior", "Spatial \nconfiguration")) + 
-  scale_y_log10()
-
-
-
-# Fit the mixed model
-hist(log(models$mean_zscore))
-mod_lmm <- lmer(log(mean_zscore) ~ model + (1 | plot_week), data = models)
-summary(mod_lmm)
-
-# Estimated marginal means for each model level
-emm <- emmeans(mod_lmm, ~ model)
-
-# Compare adjacent levels only
-contrast(emm, method = "consec", adjust = "none")
-
-
-
-
-# Create Fig. 3
-# Define parameters
-shape_e <- 2
-shape_g <- 2
-scale_e <- 5
-scale_g <- 1
-n_draws <- 1000  # Número de muestras
-
-# Generate prior
-name_prior <- paste0("_shapes_eg_", shape_e, "_", shape_g, "_scales", scale_e, "_", scale_g)
-
-# Generate random samples with Gamma distribution
-set.seed(123)  # set seed
-prior_e <- rgamma(n_draws, shape = shape_e, scale = scale_e)
-
-prior_g <- rgamma(n_draws, shape = shape_g, scale = scale_g)
-
-# Transform to dataframe and take a look at the first rows
-prior_e_df <- data.frame(prior_e = prior_e)
-prior_g_df <- data.frame(prior_g = prior_g)
-
-head(prior_e_df)
-head(prior_g_df)
-
-hist(prior_e_df$prior_e)
-hist(prior_g_df$prior_g)
-
-prior_g_df %<>% mutate(type="prior_g") %>% dplyr::rename(r_value= prior_g)
-prior_e_df %<>% mutate(type="prior_e") %>% dplyr::rename(r_value= prior_e)
-
-
-temp <- list.files("Data/Accepted/", full.names = T)
-myfiles <- lapply(temp, read.csv)
-
-myfiles[[1]]
-names.temp <- gsub("Data/Accepted//|_gm_e\\(2,5\\)_gm_g\\(2,1\\)_th4_4|_accepted|\\.csv", "", temp)
-
-
-for(i in 1:length(myfiles)){
-  names(myfiles)[[i]] <- names.temp[[i]]
-  temp1 <- myfiles[[i]] 
-  temp1 %<>% dplyr::select(r_esp, r_gen) %>% 
-    pivot_longer(cols=c(r_esp, r_gen), names_to = "type", values_to = "r_value") 
-  temp2 <- rbind(prior_g_df, prior_e_df, temp1)
-  temp2 %<>% dplyr::mutate(plot_week=sub("_.*", "", names.temp[[i]]),
-                           scenario=sub(".*_", "", names.temp[[i]]))
-  myfiles[[i]] <- temp2
-  
-}
-
-all.plots.weeks <- do.call("rbind", myfiles)
-
-all.plots.weeks %<>% dplyr::filter(scenario=="random")
-
-
-glimpse(all.plots.weeks)
-levels(as.factor(all.plots.weeks$type))
-
-
-ggplot(all.plots.weeks, aes(x = r_value, color = type, fill = type)) +
-  geom_density(alpha = 0.4) +
-  scale_color_manual(values = c("#7a9aaf","#b0d8b5", "#2e4057", "#66a182"),
-                     labels = c("Occasional \nforagers (prior)", 
-                                "Frequent \nforagers (prior)", 
-                                "Occasional \nforagers (posterior)", 
-                                "Frequent \nforagers (posterior)")) +
-  scale_fill_manual(values = c("#7a9aaf","#b0d8b5", "#2e4057", "#66a182"),
-                    labels = c("Occasional \nforagers (prior)", 
-                               "Frequent \nforagers (prior)", 
-                               "Occasional \nforagers (posterior)", 
-                               "Frequent \nforagers (posterior)")) +
-  facet_wrap(~plot_week, ncol = 3, scales = "free") +
-  theme_bw() + 
-  xlim(0, 10) +  # Updated x-axis limit
-  xlab(expression(paste(italic("r "), "value"))) + 
-  ylab("Density") + 
-  theme(axis.text = element_text(size = 12), 
-        axis.title = element_text(size = 16),
-        axis.title.y = element_text(margin = margin(t = 0, r = 20, b = 0, l = 0)),
-        axis.title.x = element_text(margin = margin(t = 20, r = 0, b = 0, l = 0)),
-        legend.title = element_blank(),
-        legend.spacing.x = unit(0.5, "cm"),
-        legend.position = "bottom",
-        strip.background = element_rect(color = "white", fill = "white", size = 1.5),
-        strip.text = element_text(size = 14, face = "bold")) +  # Adjust facet label text
-  guides(color = guide_legend(ncol = 2, byrow = TRUE, 
-                              override.aes = list(order = c(4, 2, 3, 1))),
-         fill = guide_legend(ncol = 2, byrow = TRUE, 
-                             override.aes = list(order = c(4, 2, 3, 1))))
-
-
-
-r.pol <- ggplot(filter(all.plots.weeks, plot_week=="A2"), 
-                aes(x = r_value, color = type, fill = type)) +
-  geom_density(alpha = 0.5) +
-  scale_color_manual(values = c("#7a9aaf","#b0d8b5", "#2e4057", "#66a182"),
-                     labels = c("Occasional \nforagers (prior)", 
-                                "Frequent \nforagers (prior)", 
-                                "Occasional \nforagers (posterior)", 
-                                "Frequent \nforagers (posterior)")) +
-  scale_fill_manual(values = c("#7a9aaf","#b0d8b5", "#2e4057", "#66a182"),
-                    labels = c("Occasional \nforagers (prior)", 
-                               "Frequent \nforagers (prior)", 
-                               "Occasional \nforagers (posterior)", 
-                               "Frequent \nforagers (posterior)")) +
-  theme_bw() + 
-  xlim(0, 10) +  
-  xlab(expression(paste(italic("r "), "value"))) + 
-  ylab("Density") + 
-  theme(axis.text = element_text(size = 14), 
-        axis.title = element_text(size = 16), 
-        legend.title = element_blank(),
-        legend.spacing.x = unit(0.3, "cm"),
-        legend.key.size = unit(0.5, "cm"),
-        legend.text = element_text(size=9),
-        strip.background = element_rect(color = "white", fill = "white", size = 1.5),
-        strip.text = element_text(size = 14, face = "bold"),
-        legend.position = c(0.98, 0.98),      
-        legend.justification = c(1, 1)) +  
-  guides(color = guide_legend(ncol = 2, byrow = TRUE, 
-                              keyheight = unit(1, "lines"),  # Increase key height for spacing
-                              override.aes = list(order = c(4, 2, 3, 1))),
-         fill = guide_legend(ncol = 2, byrow = TRUE, 
-                             keyheight = unit(1, "lines"),  # Increase key height for spacing
-                             override.aes = list(order = c(4, 2, 3, 1))))
-
-
-#####
-
-
-range01 <- function(x){(x-min(x))/(max(x)-min(x))}
-
-temp <- list.files("Data/Temporal_slices_individuals/", full.names = T)
-myfiles <- lapply(temp, read.csv, sep=";")
-
-names.temp <- gsub("Data/Temporal_slices_individuals//network_plot_|_slice_|\\.csv", "", temp)
-
-myfiles[[1]]
-
-n.ind.plant <- list()
-rel.abun.pol <- list()
-for(i in 1:length(myfiles)){
-  names(myfiles)[[i]] <- names.temp[[i]]
-  temp1 <- myfiles[[i]] %<>% dplyr::select(-Plant_id)
-  temp2 <- data.frame(n_plants=nrow(temp1), 
-                      n_pol=ncol(temp1),
-                      n_int=sum(temp1 != 0),
-                      plot_week= names(myfiles)[[i]])
-  temp2 %<>% mutate(plot = substr(plot_week, 1, 1),  
-                    slice = as.integer(substr(plot_week, 2, 2))) 
-  
-  n.ind.plant[[i]] <- temp2
-  
-  temp3 <- temp1
-  temp4 <- colSums(temp3) / sum(temp3)
-  
-  temp5 <- temp4*temp2$n_plants*5
-  temp6 <- (temp5)
-  
-  temp7 <- data.frame(pollinator_sp = names(temp6),
-                      rel_abundance = as.numeric(temp4),
-                      total_abundance = as.numeric(temp6),
-                      plot_week = names(myfiles)[[i]])
-  
-  
-  rel.abun.pol[[i]] <- temp7
-}
-
-all.n.ind <- do.call("rbind", n.ind.plant)
-
-table.net <- all.n.ind %>% dplyr::select(-plot_week)
-table.net <- table.net[,c(4,5,1,2,3)]
-table.net$n_plant_sp <- c(5,5,3,4,6,3,4,7,3,4,6,3,5,8,2,4,7,2)
-
-mean(table.net$n_plants)
-sd(table.net$n_plants)
-
-mean(table.net$n_pol)
-sd(table.net$n_pol)
-
-mean(table.net$n_int)
-sd(table.net$n_int)
-
-mean(table.net$n_plant_sp)
-sd(table.net$n_plant_sp)
-
-
-all.abun.pol <- do.call("rbind", rel.abun.pol)
-
-
-# P abundance histogram
-all.abun.pol %>% group_by(plot_week) %>% 
-  summarise(sum=sum(rel_abundance))
-
-
-
-
-
-bins <- seq(0, 1, by = 0.05)
-
-# Create bins for rel_abundance using custom breaks
-df <- all.abun.pol %>%
-  dplyr::mutate(rel_abundance_bin = cut(rel_abundance, breaks = bins, include.lowest = TRUE))
-
-# Summarize the data to count the number of distinct pollinator species per bin
-df_summary <- df %>%
-  group_by(rel_abundance_bin, plot_week) %>%
-  dplyr::summarize(count = n_distinct(pollinator_sp)) %>%
-  # Convert bin labels to numeric midpoints for continuous x-axis
-  mutate(rel_abundance_mid = (as.numeric(gsub("[^0-9\\.]", "", sub(",.*", "", rel_abundance_bin))) +
-                                as.numeric(gsub("[^0-9\\.]", "", sub(".*,", "", rel_abundance_bin)))) / 2)
-glimpse(df_summary)
-
-# Plot
-ggplot(df_summary, aes(x = rel_abundance_mid, y = count)) +
-  geom_col(fill = "#2e4057") +  # Use your preferred color
-  labs(x = "Relative interaction frequency", 
-       y = "Number of pollinator species") +
-  theme_bw() +
-  facet_wrap(~plot_week, ncol=3, scales="free_y") +
-  theme(
-    axis.title = element_text(size = 16),
-    axis.title.y = element_text(margin = margin(t = 0, r = 20, b = 0, l = 0)),
-    axis.title.x = element_text(margin = margin(t = 20, r = 0, b = 0, l = 0)),
-    axis.text = element_text(size = 12),
-    strip.background = element_rect(color = "white", fill = "white", size = 1.5),
-    strip.text = element_text(size = 14, face = "bold")
-  ) +
-  scale_x_continuous(breaks = seq(0, 1, by = 0.2)) +
-  scale_y_continuous(labels = scales::number_format(accuracy = 1))
-
-
-#####
-temp <- list.files("Data/Accepted/", full.names = T)
-myfiles <- lapply(temp, read.csv)
-
-myfiles[[1]]
-names.temp <- gsub("Data/Accepted//|_gm_e\\(2,5\\)_gm_g\\(2,1\\)_th4_4|_accepted|\\.csv", "", temp)
-
-for(i in 1:length(myfiles)){
-  names(myfiles)[[i]] <- names.temp[[i]]
-  temp1 <- myfiles[[i]] 
-  names(temp1)[2] <- "pollinator_sp"
-  
-  pol.abun <- temp1 %>% dplyr::select(pollinator_sp, Tipo) %>%
-    dplyr::mutate(plot_week=sub("_.*", "", names.temp[[i]]))
-  pol.abun %<>% merge(all.abun.pol, by=c("pollinator_sp", "plot_week")) %>% unique()
-  abundance_sum <- aggregate(total_abundance ~ Tipo, data = pol.abun, sum)
-  abundance_sum$Tipo <- c("esp", "gen")
-  abundance_sum %<>% dplyr::rename(sp_gen_esp=Tipo)
-  
-  temp2 <- temp1 %>% dplyr::select(r_esp, r_gen) %>% 
-    pivot_longer(cols=c(r_esp, r_gen), names_to = "type", values_to = "r_value") 
-  #temp2 <- rbind(prior_g_df, prior_e_df, temp1)
-  temp2$scenario <- sub(".*_", "", names.temp[[i]])
-  temp2 %<>% dplyr::mutate(plot_week=sub("_.*", "", names.temp[[i]]),
-                           scenario=sub(".*_", "", names.temp[[i]]))
-  
-  temp2 %<>% dplyr::mutate(sp_gen_esp = substr(type, 3, 5)) %>% 
-    merge(abundance_sum, by="sp_gen_esp")
-  
-  myfiles[[i]] <- temp2
-}
-
-
-all.plots.weeks <- do.call("rbind", myfiles)
-
-all.plots.weeks <- unique(all.plots.weeks)
-
-
-all.plots.weeks %<>% dplyr::filter(scenario=="random")
-test <- aggregate(r_value ~ plot_week + type + sp_gen_esp + total_abundance, data = all.plots.weeks, median)
-
-test %<>% filter(!plot_week %in% c("E3", "F3"))
-r.pol.abun <- ggplot(test, aes(x = total_abundance, y = r_value, color = type, label=plot_week)) +
-  geom_point(size=3, alpha=0.5) + geom_text(hjust=-0.5, vjust=0, show_guide = F, size=2.5) +
-  stat_ellipse(type = "t", linetype = 2) +
-  scale_color_manual(values=c("#2e4057", "#66a182"), 
-                     labels=c("Occasional \nforagers", "Frequent \nforagers")) +
-  labs(x = "Interaction frequency", y = "r scale (median)", color = "type") +
-  theme_bw() + guides(label="none") + theme(legend.title=element_blank(),
-                                            legend.key.size = unit(0.5, "cm"),
-                                            legend.text = element_text(size=9),
-                                            axis.title = element_text(size=16),
-                                            axis.text = element_text(size=14),
-                                            legend.position = c(0.98, 0.98),      
-                                            legend.justification = c(1, 1)) +
-  guides(color = guide_legend(ncol = 1, byrow = TRUE, 
-                              keyheight = unit(2, "lines"),
-                              fill = guide_legend(ncol = 1, byrow = TRUE, 
-                                                  keyheight = unit(2, "lines"))))
-
-
-
-ggarrange(
-  NULL, r.pol, NULL,         
-  r.pol.abun, 
-  nrow = 1, widths = c(0.1, 1, 0.1, 1), vjust=1.5, hjust=0.5,
-  labels = c("", "A","", "B"), font.label=list(color="black",size=20)       # Label of the line plot
-) 
-
-ggarrange(
-  r.pol,       
-  r.pol.abun, 
-  nrow = 2, 
-  labels = c( "A", "B"), font.label=list(color="black",size=20)       # Label of the line plot
-) 
 
