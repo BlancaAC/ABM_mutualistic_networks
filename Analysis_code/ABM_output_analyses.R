@@ -16,9 +16,7 @@ library(lme4)
 
 
 # Create Fig. 2
-# Compare all models based on RMSE
-
-# z-scores
+# Compare all models based on RMSE and degree z-scores
 
 model1 <- read.csv("Output_model/abserrors_zscore_randomproof.csv", dec = ".") %>%
   dplyr::filter(metric=="RMAE") %>%
@@ -88,8 +86,6 @@ models <- models %>%
     model = factor(model, levels = paste0("model_", 1:4)),
     week = factor(week)
   )
-
-
 
 
 ggplot(models, aes(x = model, y = mean_zscore, 
@@ -198,6 +194,7 @@ levels(as.factor(all.plots.weeks$type))
 
 
 # Create Fig. S2
+
 ggplot(all.plots.weeks, aes(x = r_value, color = type, fill = type)) +
   geom_density(alpha = 0.4) +
   scale_color_manual(values = c("#7a9aaf","#b0d8b5", "#2e4057", "#66a182"),
@@ -212,7 +209,7 @@ ggplot(all.plots.weeks, aes(x = r_value, color = type, fill = type)) +
                                "Frequent \nforagers (posterior)")) +
   facet_wrap(~plot_week, ncol = 3, scales = "free") +
   theme_bw() + 
-  xlim(0, 10) +  # Updated x-axis limit
+  xlim(0, 10) +  
   xlab(expression(paste(italic("r "), "value"))) + 
   ylab("Density") + 
   theme(axis.text = element_text(size = 12), 
@@ -267,8 +264,8 @@ r.pol <- ggplot(filter(all.plots.weeks, plot_week=="A2"),
                              override.aes = list(order = c(4, 2, 3, 1))))
 
 
-#####
 
+# Estimate pollinator activity density based on interaction data
 
 range01 <- function(x){(x-min(x))/(max(x)-min(x))}
 
@@ -353,7 +350,7 @@ df_summary <- df %>%
 glimpse(df_summary)
 
 ggplot(df_summary, aes(x = rel_abundance_mid, y = count)) +
-  geom_col(fill = "#2e4057") +  # Use your preferred color
+  geom_col(fill = "#2e4057") +  
   labs(x = "Relative interaction frequency", 
        y = "Number of pollinator species") +
   theme_bw() +
@@ -441,20 +438,19 @@ ggarrange(
   NULL, r.pol, NULL,         
   r.pol.abun, 
   nrow = 1, widths = c(0.1, 1, 0.1, 1), vjust=1.5, hjust=0.5,
-  labels = c("", "A","", "B"), font.label=list(color="black",size=20)       # Label of the line plot
+  labels = c("", "A","", "B"), font.label=list(color="black",size=20) 
 ) 
 
 ggarrange(
   r.pol,       
   r.pol.abun, 
   nrow = 2, 
-  labels = c( "A", "B"), font.label=list(color="black",size=20)       # Label of the line plot
+  labels = c( "A", "B"), font.label=list(color="black",size=20) 
 ) 
 
 
 
 # Create Fig. 4
-
 
 # Read acceptance rates of the Bayesian Approximate Computation (ABC)
 acc.rate <- read.csv("Output_model/metrics.csv", dec = ".")
@@ -479,7 +475,7 @@ rand_xy %>% friedman.test(rate ~ scenario)
 friedman.test(rate ~ scenario | Plot_slice, data = acc.rate)
 
 
-
+# Panel A
 
 test1 <- acc.rate %>%
   dplyr::group_by(Plot_slice) %>%
@@ -504,6 +500,7 @@ scaled.plot <- ggplot(test1, aes(x = scenario, y = rate, fill=scenario, color=sc
   guides(color="none", fill="none") 
 
 
+# Panel B
 
 # Plot aggregated spatial distribution
 set.seed(3)
@@ -585,7 +582,7 @@ ggarrange(scaled.plot,
 
 
 
-#### Temporal variation 
+#### Temporal variation in predictive ability based on acceptance rates
 
 temp.data <- test1 %>%
   mutate(
@@ -654,7 +651,5 @@ plot.space.time <- ggplot(temp.data, aes(x = slice, y = scenario, fill = mean_ra
 
 plot.time + plot.space.time + plot_annotation(tag_levels = 'A') &
   theme(plot.tag = element_text(face = 'bold', size=20))
-
-
 
 
