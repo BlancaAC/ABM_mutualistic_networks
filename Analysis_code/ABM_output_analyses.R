@@ -112,10 +112,10 @@ ggplot(models, aes(x = model, y = mean_zscore,
     panel.grid.minor = element_blank(),
     strip.background = element_rect(color="white", fill="white", size=1.5, linetype="solid"),
     strip.text=element_text(face="bold", size=14),
-    axis.text.x = element_text(size=10)
+    axis.text.x = element_text(size=10, angle = 45, hjust = 1)
   ) + scale_x_discrete(breaks=c("model_1","model_2","model_3", "model_4"),
                        labels=c("Baseline", "Species \nabundance", 
-                                "Pollinator \nbehavior", "Spatial \nconfiguration")) + 
+                                "Pollinator \nbehaviour", "Spatial \nconfiguration")) + 
   scale_y_log10()
 
 
@@ -496,7 +496,7 @@ scaled.plot <- ggplot(test1, aes(x = scenario, y = rate, fill=scenario, color=sc
   theme(legend.title=element_blank(), axis.title.x = element_blank(),
         axis.text = element_text(size=14), axis.title.y = element_text(size=16),
         axis.text.x = element_text(vjust = -1),
-        plot.margin = margin(0, 0, 6, 0, "pt")) +
+        plot.margin = margin(0, 0, 10, 0, "pt")) +
   guides(color="none", fill="none") 
 
 
@@ -523,7 +523,7 @@ p1 <- ggplot(aggregated_data, aes(x, y, shape=sp)) +
     plot.background = element_rect(fill = "white", color = "white"),  # White background with black margins
     panel.border = element_rect(color = "black", fill=NA),
     axis.title = element_text(size=16),
-    plot.margin = margin(0, 0, 0, 0, "pt")  # Black border around the plot
+    plot.margin = margin(0, 4, 0, 0, "pt")  # Black border around the plot
   )+ guides(shape=FALSE)
 
 # Plot random spatial distribution
@@ -547,7 +547,7 @@ p2 <- ggplot(random_data, aes(x, y, shape=sp)) +
     plot.background = element_rect(fill = "white", color = "white"),  # White background with black margins
     panel.border = element_rect(color = "black", fill=NA),
     axis.title = element_text(size=16),
-    plot.margin = margin(0, 0, 0, 0, "pt")  # Black border around the plot
+    plot.margin = margin(0, 4, 0, 0, "pt")  # Black border around the plot
   )+ guides(shape=FALSE)
 
 # Plot regular spatial distribution (grid)
@@ -567,7 +567,7 @@ p3 <- ggplot(grid_data, aes(x, y, shape=sp)) +
     plot.background = element_rect(fill = "white", color = "white"),  # White background with black margins
     panel.border = element_rect(color = "black", fill=NA),
     axis.title = element_text(size=16),
-    plot.margin = margin(0, 0, 0, 0, "pt")  # Black border around the plot
+    plot.margin = margin(0, 4, 0, 0, "pt")  # Black border around the plot
   ) + guides(shape=FALSE)
 
 # Display plots
@@ -580,6 +580,7 @@ ggarrange(scaled.plot,
           nrow=2, labels="A"
 )
 
+scaled.plot / ((p1+ p2+ p3) + plot_layout(axes="collect"))
 
 
 #### Temporal variation in predictive ability based on acceptance rates
