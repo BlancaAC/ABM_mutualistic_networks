@@ -9,7 +9,7 @@ Blanca Arroyo-Correa<sup>1,2*</sup>, Ignasi Bartomeus<sup>1</sup>, Pedro Jordano
 
 <sup>1</sup>Dept. Ecology and Evolution, Estación Biológica de Doñana (EBD-CSIC), Seville, Spain.\
 <sup>2</sup>Dept. Biología Vegetal y Ecología, Facultad de Biología, Universidad de Sevilla, Sevilla, Spain.\
-<sup>3</sup>Institute for Research in Technology (IIT) and Interdisciplinary Group on Complex Systems (GISC), Universidad Pontificia Comillas, Madrid, Spain.\
+<sup>3</sup>Institute for Research in Technology (IIT), Universidad Pontificia Comillas, Madrid, Spain.\
 <sup>4</sup>Grupo Interdisciplinar de Sistemas Complejos, Madrid, Spain.\
 <sup>5</sup>Complex System Group, Universidad Politécnica de Madrid, Madrid, Spain.
 
