@@ -492,7 +492,7 @@ scaled.plot <- ggplot(test1, aes(x = scenario, y = rate, fill=scenario, color=sc
   scale_fill_manual(values=c("#D26635", "#971E2E", "#561942")) +
   theme_bw(base_size=20) + 
   labs(x = "Scenario", y = "Acceptance rate") +
-  scale_x_discrete(labels=c("XY", "Random", "Regular")) + 
+  scale_x_discrete(labels=c("Observed", "Random", "Regular")) + 
   theme(legend.title=element_blank(), axis.title.x = element_blank(),
         axis.text = element_text(size=14), axis.title.y = element_text(size=16),
         axis.text.x = element_text(vjust = -1),
@@ -640,7 +640,7 @@ plot.space.time <- ggplot(temp.data, aes(x = slice, y = scenario, fill = mean_ra
   labs(x = "Slice",
        y = "Scenario") +
   scale_x_discrete(labels = c("Early", "Peak", "Late")) +
-  scale_y_discrete(labels = c("XY", "Random", "Regular")) +
+  scale_y_discrete(labels = c("Observed", "Random", "Regular")) +
   theme_minimal() +
   theme(axis.text = element_text(size=15, hjust = 0.5), 
         legend.title= element_text(size=15, hjust = 0.5),
@@ -650,7 +650,7 @@ plot.space.time <- ggplot(temp.data, aes(x = slice, y = scenario, fill = mean_ra
   coord_fixed()  # Keep the aspect ratio square
 
 
-plot.time + plot.space.time + plot_annotation(tag_levels = 'A') &
+plot.space.time + plot.time + plot_annotation(tag_levels = 'A') &
   theme(plot.tag = element_text(face = 'bold', size=20))
 
 
