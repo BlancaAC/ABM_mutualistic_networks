@@ -654,3 +654,37 @@ plot.space.time + plot.time + plot_annotation(tag_levels = 'A') &
   theme(plot.tag = element_text(face = 'bold', size=20))
 
 
+
+# Example data for conceptual figure
+df <- data.frame(
+  degree = c(
+    1.0, 3.3, 5.0, 6.2, 7.3, 8.0, 8.7, 9.3, 10.0, 10.7,
+    11.3, 11.9, 12.5, 13.0, 13.5, 14.0, 14.4, 14.9, 15.4,
+    15.9, 16.3, 16.8, 17.2, 17.8, 18.3, 18.8, 19.4, 20.0,
+    20.8, 21.6, 22.2, 22.8, 23.5, 24.2, 25.0, 26.0, 27.0,
+    28.0, 31.5
+  ),
+  n_species = c(
+    39, 33, 29, 26, 23, 21, 20, 19, 17, 16,
+    15, 13, 13, 12, 11, 9, 8, 10, 8,
+    6, 7, 5, 6, 5, 2, 3, 2, 2,
+    1, 1, 1, 1, 1, 1, 1, 4, 1,
+    1, 1
+  )
+)
+
+ggplot(df, aes(degree, n_species)) +
+  geom_point(size = 3.2, colour = "grey40", alpha = 0.7) +
+  labs(
+    x = "Species' degree\n(i.e., number of unique interactions)",
+    y = "Number of species"
+  ) +
+  theme_bw(base_size = 18) +
+  theme(
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    axis.title = element_text(size = 18),
+    axis.line = element_line(linewidth = 0.8),
+    panel.grid = element_blank()
+  )
+

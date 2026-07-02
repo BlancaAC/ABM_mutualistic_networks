@@ -11,6 +11,6 @@ Blanca Arroyo-Correa<sup>1,2*</sup>, Ignasi Bartomeus<sup>1</sup>, Pedro Jordano
 <sup>2</sup>Dept. Biología Vegetal y Ecología, Facultad de Biología, Universidad de Sevilla, Sevilla, Spain.\
 <sup>3</sup>Institute for Research in Technology (IIT), Universidad Pontificia Comillas, Madrid, Spain.\
 <sup>4</sup>Interdisciplinary Group on Complex Systems, Madrid, Spain.\
-<sup>5</sup>Complex System Group, Universidad Politécnica de Madrid, Madrid, Spain.
+<sup>5</sup>Complex Systems Group, Universidad Politécnica de Madrid, Madrid, Spain.
 
 <sup>*</sup>corresponding author: [blanca.arroyo.correa@gmail.com](blanca.arroyo.correa@gmail.com)
